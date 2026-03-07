@@ -1,0 +1,9 @@
+{
+    "name": "Solarized Light",
+    "background": "#fdf6e3",
+    "foreground": "#657b83",
+    "sidebar_bg": "#eee8d5",
+    "selection": "#93a1a1",
+    "border_color": "#93a1a1",
+    "accent": "#268bd2"
+}

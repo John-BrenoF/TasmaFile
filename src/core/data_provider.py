@@ -1,5 +1,6 @@
 import os
 import json
+import platform
 from PySide6.QtCore import QObject, QDir, Signal
 
 class TasmaDataProvider(QObject):
@@ -35,6 +36,19 @@ class TasmaDataProvider(QObject):
         
     def get_root_dir(self):
         return QDir.rootPath()
+
+    def get_trash_dir(self):
+        """Retorna o caminho da lixeira do sistema, se possível."""
+        system = platform.system()
+        if system == "Linux":
+            # Freedesktop.org standard
+            return os.path.join(os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share')), 'Trash/files')
+        elif system == "Darwin": # macOS
+            return os.path.expanduser('~/.Trash')
+        elif system == "Windows":
+            # O acesso à Lixeira do Windows como um caminho de arquivo não é direto.
+            return None
+        return None
 
     def get_custom_categories(self):
         """Retorna dicionário de categorias personalizadas {nome: caminho}."""

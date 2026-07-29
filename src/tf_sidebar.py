@@ -56,8 +56,8 @@ class TasmaSidebar(QWidget):
         self.theme = {}
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(5)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Buscar...")
@@ -80,22 +80,20 @@ class TasmaSidebar(QWidget):
         fg = theme.get("foreground", "#cccccc")
         border = theme.get("border_color", "#3e3e42")
         hover = theme.get("selection", "#37373d")
-        
-        self.setStyleSheet(f"background-color: {bg}; border-right: 1px solid {border};")
+        accent = theme.get("accent", "#007acc")
 
-        input_bg = theme.get("background", "#1e1e1e")
+        self.setStyleSheet(f"background-color: {bg}; border: none;")
+
         self.search_bar.setStyleSheet(f"""
-            QLineEdit {{ background-color: {input_bg}; color: {fg}; padding: 5px; border: 1px solid {border}; border-radius: 4px; }}
+            QLineEdit {{ background-color: {bg}; color: {fg}; padding: 6px 10px; border: none; border-radius: 6px; }}
         """)
-        
+
         self.list_widget.setStyleSheet(f"""
             QListWidget {{ border: none; background-color: transparent; color: {fg}; font-size: 13px; }}
-            QListWidget::item {{ padding: 8px; border-radius: 4px; margin: 2px 5px; }}
-            QListWidget::item:selected {{ background-color: {hover}; color: white; }}
+            QListWidget::item {{ padding: 7px 8px; border-radius: 6px; margin: 1px 2px; }}
+            QListWidget::item:selected {{ background-color: {hover}; color: #ffffff; }}
             QListWidget::item:hover {{ background-color: {border}; }}
-        """)
-        self.list_widget.setStyleSheet(self.list_widget.styleSheet() + f"""
-            SidebarListWidget[is_dropping="true"] {{ border: 2px dashed {theme.get('accent', '#007acc')}; }}
+            SidebarListWidget[is_dropping="true"] {{ border: 2px dashed {accent}; }}
         """)
 
     def _get_icon_for_type(self, type_id):
@@ -107,8 +105,6 @@ class TasmaSidebar(QWidget):
             "root": QStyle.StandardPixmap.SP_ComputerIcon,
             "home": QStyle.StandardPixmap.SP_DirHomeIcon,
             "recent": QStyle.StandardPixmap.SP_DirOpenIcon,
-            "source": QStyle.StandardPixmap.SP_FileIcon,
-            "plugins_root": QStyle.StandardPixmap.SP_FileDialogDetailedView,
             "config_general": QStyle.StandardPixmap.SP_ToolBarHorizontalExtensionButton,
         }
         pixmap_enum = icon_map.get(type_id, QStyle.StandardPixmap.SP_FileIcon)
@@ -118,8 +114,6 @@ class TasmaSidebar(QWidget):
         # Limpa a lista para evitar duplicatas ao recarregar
         self.list_widget.clear()
 
-        # Seção: Navegação
-        
         # Seção: Favoritos (Custom)
         custom = self.provider.get_custom_categories()
         if custom:
@@ -136,15 +130,11 @@ class TasmaSidebar(QWidget):
         self._add_item("Pasta de Usuário", "home", self.provider.get_home_dir())
         
         # Seção: Projetos
-        self._add_header("PROJETOS")
         recents = self.provider.get_recent_projects()
-        for path in recents:
-            self._add_item(path.split("/")[-1], "recent", path)
-            
-        # Seção: Sistema JCode
-        self._add_header("JCODE SYSTEM")
-        self._add_item("Código Fonte", "source", self.provider.get_editor_source())
-        self._add_item("Plugins", "plugins_root", "plugins_virtual_root") # Placeholder logic
+        if recents:
+            self._add_header("PROJETOS")
+            for path in recents:
+                self._add_item(path.split("/")[-1], "recent", path)
 
         # Seção: Configurações
         self._add_header("CONFIGURAÇÕES")

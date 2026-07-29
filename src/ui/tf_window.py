@@ -65,10 +65,10 @@ class TasmaFileWindow(QDialog):
         
         # Botões Inferiores
         btn_layout = QHBoxLayout()
-        btn_layout.setContentsMargins(10, 10, 10, 10)
+        btn_layout.setContentsMargins(10, 4, 10, 4)
         
         self.lbl_status = QLabel("Pronto")
-        self.lbl_status.setStyleSheet("color: #808080; font-size: 11px; padding-left: 5px;")
+        self.lbl_status.setStyleSheet("color: #808080; font-size: 11px;")
         
         btn_layout.addWidget(self.lbl_status)
         btn_layout.addStretch()
@@ -103,52 +103,70 @@ class TasmaFileWindow(QDialog):
         fg = theme.get("foreground", "#cccccc")
         accent = theme.get("accent", "#007acc")
         border = theme.get("border_color", "#3c3c3c")
+        muted = theme.get("sidebar_bg", "#2a2a2a")
         
+        # Scrollbars finas e discretas: só aparecem com contraste no hover.
         scrollbar_style = f"""
             QScrollBar:vertical {{
-                border: none; background: {bg}; width: 10px; margin: 0;
+                border: none; background: transparent; width: 8px; margin: 0;
             }}
             QScrollBar::handle:vertical {{
-                background: {border}; min-height: 20px; border-radius: 5px;
+                background: {muted}; min-height: 24px; border-radius: 4px;
             }}
+            QScrollBar::handle:vertical:hover {{
+                background: {border};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
             QScrollBar:horizontal {{
-                border: none; background: {bg}; height: 10px; margin: 0;
+                border: none; background: transparent; height: 8px; margin: 0;
             }}
             QScrollBar::handle:horizontal {{
-                background: {border}; min-width: 20px; border-radius: 5px;
+                background: {muted}; min-width: 24px; border-radius: 4px;
             }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {border};
+            }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
         """
         
+        # Abas minimalistas: sem caixa, apenas um traço inferior indicando a aba ativa.
         tab_style = f"""
             QTabWidget::pane {{
                 border: none;
+                border-top: 1px solid {muted};
+            }}
+            QTabBar {{
+                background: transparent;
             }}
             QTabBar::tab {{
-                background: {bg};
+                background: transparent;
                 color: {fg};
-                border: 1px solid {bg};
-                border-bottom-color: {border};
-                padding: 8px 12px;
-                min-width: 100px;
+                border: none;
+                border-bottom: 2px solid transparent;
+                padding: 8px 14px;
+                margin-right: 2px;
             }}
             QTabBar::tab:selected {{
-                background: {bg};
-                border: 1px solid {border};
-                border-bottom-color: {bg};
                 color: {accent};
+                border-bottom: 2px solid {accent};
             }}
-            QTabBar::tab:hover {{
-                background: {border};
+            QTabBar::tab:hover:!selected {{
+                color: {fg};
+                border-bottom: 2px solid {muted};
+            }}
+            QTabBar::close-button {{
+                subcontrol-position: right;
             }}
             QTabWidget::corner-widget {{
                 border: none;
             }}
         """
         
+        # Splitter praticamente invisível: só se revela sutilmente no hover.
         splitter_style = f"""
             QSplitter::handle:horizontal {{
-                background: {border};
-                width: 1px;
+                background: transparent;
+                width: 2px;
             }}
             QSplitter::handle:hover {{
                 background: {accent};
@@ -165,8 +183,11 @@ class TasmaFileWindow(QDialog):
             if hasattr(widget, 'apply_theme'):
                 widget.apply_theme(theme)
         
-        # Aplica estilo na Settings View (básico)
-        self.settings_view.setStyleSheet(f"background-color: {bg}; color: {fg};")
+        # Aplica tema completo (flat/minimalista) na tela de Configurações
+        if hasattr(self.settings_view, 'apply_theme'):
+            self.settings_view.apply_theme(theme)
+        else:
+            self.settings_view.setStyleSheet(f"background-color: {bg}; color: {fg};")
 
     def _refresh_favorites(self):
         favs = self.provider.get_custom_categories()

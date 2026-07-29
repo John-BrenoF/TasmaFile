@@ -17,7 +17,7 @@ class PreviewPanel(QFrame):
         self.current_pixmap = None # Armazena a pixmap original para re-escalonamento
         
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(5, 5, 5, 5)
+        self.layout.setContentsMargins(12, 12, 12, 12)
         
         self.stack = QStackedWidget()
         self.layout.addWidget(self.stack)
@@ -47,8 +47,10 @@ class PreviewPanel(QFrame):
         border = theme.get("border_color", "#454545")
         
         self.setStyleSheet(f"#PreviewPanel {{ background-color: {bg}; border-left: 1px solid {border}; }}")
-        self.placeholder.setStyleSheet(f"color: {QColor(fg).darker(130).name()};")
-        self.text_preview.setStyleSheet(f"background-color: {bg}; color: {fg}; border: none;")
+        self.placeholder.setStyleSheet(f"color: {QColor(fg).darker(160).name()}; font-size: 12px;")
+        self.text_preview.setStyleSheet(f"""
+            QTextEdit {{ background-color: {bg}; color: {fg}; border: none; padding: 6px; }}
+        """)
 
     def _get_pygments_style(self, theme):
         # Basic check for light/dark theme to choose a pygments style

@@ -10,16 +10,19 @@ class TasmaSettings(QWidget):
         self.config_manager = config_manager
         
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(16)
         layout.setAlignment(Qt.AlignTop)
         
         title = QLabel("Configurações")
-        title.setStyleSheet("font-size: 24px; font-weight: bold; margin-bottom: 10px;")
+        title.setStyleSheet("font-size: 22px; font-weight: 600; margin-bottom: 4px;")
         layout.addWidget(title)
         
         # Grupo de Inicialização
-        group_startup = QGroupBox("Inicialização")
+        group_startup = QGroupBox("INICIALIZAÇÃO")
         startup_layout = QFormLayout(group_startup)
+        startup_layout.setSpacing(10)
+        startup_layout.setHorizontalSpacing(16)
         
         self.combo_startup = QComboBox()
         self.combo_startup.addItems(["Projetos Recentes", "Pasta de Usuário", "Personalizada"])
@@ -51,8 +54,10 @@ class TasmaSettings(QWidget):
         layout.addWidget(group_startup)
 
         # Grupo de Comportamento
-        group_behavior = QGroupBox("Comportamento")
+        group_behavior = QGroupBox("COMPORTAMENTO")
         behavior_layout = QFormLayout(group_behavior)
+        behavior_layout.setSpacing(10)
+        behavior_layout.setHorizontalSpacing(16)
 
         self.check_hidden = QCheckBox("Mostrar arquivos ocultos")
         self.check_hidden.setChecked(self.config_manager.get("show_hidden", False))
@@ -69,8 +74,10 @@ class TasmaSettings(QWidget):
         layout.addWidget(group_behavior)
 
         # Grupo de Terminal
-        group_terminal = QGroupBox("Terminal")
+        group_terminal = QGroupBox("TERMINAL")
         terminal_layout = QFormLayout(group_terminal)
+        terminal_layout.setSpacing(10)
+        terminal_layout.setHorizontalSpacing(16)
         self.line_terminal_cmd = QLineEdit()
         self.line_terminal_cmd.setText(self.config_manager.get("terminal_command", ""))
         self.line_terminal_cmd.setPlaceholderText("ex: konsole --workdir {path}")
@@ -82,8 +89,10 @@ class TasmaSettings(QWidget):
         layout.addWidget(group_terminal)
 
         # Grupo de Aparência
-        group_appearance = QGroupBox("Aparência")
+        group_appearance = QGroupBox("APARÊNCIA")
         form_layout = QFormLayout(group_appearance)
+        form_layout.setSpacing(10)
+        form_layout.setHorizontalSpacing(16)
         
         self.combo_themes = QComboBox()
         self._populate_themes()
@@ -139,3 +148,81 @@ class TasmaSettings(QWidget):
         path = QFileDialog.getExistingDirectory(self, "Selecionar Pasta Inicial")
         if path:
             self.line_startup_path.setText(path)
+
+    def apply_theme(self, theme):
+        """Aplica um visual flat/minimalista: sem caixas nos grupos, inputs discretos."""
+        bg = theme.get("background", "#1e1e1e")
+        fg = theme.get("foreground", "#cccccc")
+        input_bg = theme.get("sidebar_bg", "#2a2a2a")
+        border = theme.get("border_color", "#3c3c3c")
+        accent = theme.get("accent", "#007acc")
+
+        self.setStyleSheet(f"""
+            QWidget {{ background-color: {bg}; color: {fg}; }}
+
+            QGroupBox {{
+                border: none;
+                border-top: 1px solid {input_bg};
+                margin-top: 22px;
+                padding-top: 14px;
+                font-weight: 600;
+                font-size: 12px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                left: 0px;
+                top: 6px;
+                padding: 0;
+                color: {accent};
+            }}
+
+            QLabel {{ background: transparent; }}
+
+            QLineEdit, QSpinBox {{
+                background-color: {input_bg};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 8px;
+                color: {fg};
+            }}
+            QLineEdit:focus, QSpinBox:focus {{
+                background-color: {input_bg};
+            }}
+
+            QComboBox {{
+                background-color: {input_bg};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 8px;
+                color: {fg};
+            }}
+            QComboBox::drop-down {{ border: none; width: 20px; }}
+            QComboBox QAbstractItemView {{
+                background-color: {bg};
+                color: {fg};
+                selection-background-color: {accent};
+                border: 1px solid {border};
+                outline: none;
+            }}
+
+            QCheckBox {{ spacing: 8px; background: transparent; }}
+            QCheckBox::indicator {{
+                width: 16px; height: 16px;
+                border-radius: 4px;
+                border: 1px solid {border};
+                background-color: {input_bg};
+            }}
+            QCheckBox::indicator:checked {{
+                background-color: {accent};
+                border: 1px solid {accent};
+            }}
+
+            QPushButton {{
+                background-color: {input_bg};
+                border: none;
+                border-radius: 6px;
+                padding: 6px 10px;
+                color: {fg};
+            }}
+            QPushButton:hover {{ background-color: {accent}; color: #ffffff; }}
+        """)

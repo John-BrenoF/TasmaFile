@@ -1,6 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QListView, QFileSystemModel, QLineEdit, QAbstractItemView, QHBoxLayout, QPushButton, QStyle, QMenu, QInputDialog, QMessageBox, QToolTip, QScrollArea, QFrame, QSlider, QComboBox, QLabel, QApplication, QFileIconProvider
 from PySide6.QtCore import Qt, Signal, QDir, QSize, QEvent, QThread
-from PySide6.QtGui import QKeySequence, QCursor
+from PySide6.QtGui import QKeySequence, QCursor, QIcon
 from datetime import datetime
 import os, platform, subprocess
 import shutil
@@ -102,123 +102,124 @@ class TasmaFileView(QWidget):
         layout.setSpacing(0)
         
         # --- Barra Superior ---
+        # Design: uma única linha enxuta com os controles essenciais, e uma
+        # segunda linha (filtro + zoom) que só aparece quando necessária,
+        # reduzindo a poluição visual no estado padrão.
+        BTN_SIZE = 28
+        ICON_BTN_SIZE = QSize(BTN_SIZE, BTN_SIZE)
+
         top_bar_widget = QWidget()
         top_bar_layout = QVBoxLayout(top_bar_widget)
-        top_bar_layout.setContentsMargins(10, 10, 10, 5)
-        top_bar_layout.setSpacing(8)
+        top_bar_layout.setContentsMargins(10, 8, 10, 6)
+        top_bar_layout.setSpacing(6)
 
-        # Linha 1: Navegação e Endereço
+        # Linha única: Navegação + Endereço + Ações
         nav_layout = QHBoxLayout()
-        self.btn_back = QPushButton()
-        self.btn_back.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack))
-        self.btn_back.setFixedSize(32, 32)
-        self.btn_back.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_back.setToolTip("Voltar")
+        nav_layout.setSpacing(4)
+
+        def _make_tool_button(icon, tooltip, checkable=False):
+            btn = QPushButton()
+            btn.setIcon(icon)
+            btn.setFixedSize(BTN_SIZE, BTN_SIZE)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setToolTip(tooltip)
+            btn.setFlat(True)
+            btn.setCheckable(checkable)
+            return btn
+
+        self.btn_back = _make_tool_button(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack), "Voltar")
         self.btn_back.clicked.connect(self.go_back)
         self.btn_back.setEnabled(False)
 
-        self.btn_forward = QPushButton()
-        self.btn_forward.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward))
-        self.btn_forward.setFixedSize(32, 32)
-        self.btn_forward.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_forward.setToolTip("Avançar")
+        self.btn_forward = _make_tool_button(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward), "Avançar")
         self.btn_forward.clicked.connect(self.go_forward)
         self.btn_forward.setEnabled(False)
 
-        self.btn_up = QPushButton()
-        self.btn_up.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp))
-        self.btn_up.setFixedSize(32, 32)
-        self.btn_up.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_up.setToolTip("Subir um nível")
+        self.btn_up = _make_tool_button(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp), "Subir um nível")
         self.btn_up.clicked.connect(self._go_up)
 
         self.address_bar = BreadcrumbBar()
         self.address_bar.path_clicked.connect(self.set_path)
 
-        self.btn_refresh = QPushButton()
-        self.btn_refresh.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload))
-        self.btn_refresh.setFixedSize(32, 32)
-        self.btn_refresh.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_refresh.setToolTip("Atualizar")
+        self.btn_search = _make_tool_button(self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView), "Filtrar arquivos", checkable=True)
+        self.btn_search.toggled.connect(self._toggle_filter_row)
+
+        self.sort_combo = QComboBox()
+        self.sort_combo.addItems(["Nome", "Tamanho", "Data de Modificação"])
+        self.sort_combo.setToolTip("Ordenar por")
+        self.sort_combo.setFixedHeight(BTN_SIZE)
+        self.sort_combo.setMaximumWidth(150)
+        self.sort_combo.currentIndexChanged.connect(self._on_sort_changed)
+
+        self.btn_sort_order = _make_tool_button(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown), "Ordem Ascendente/Descendente", checkable=True)
+        self.btn_sort_order.clicked.connect(self._on_sort_changed)
+
+        self.btn_toggle_view = _make_tool_button(QIcon(), "Alternar Visualização")
+        self.btn_toggle_view.clicked.connect(self._toggle_view_mode)
+
+        self.btn_refresh = _make_tool_button(self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload), "Atualizar")
         self.btn_refresh.clicked.connect(self._refresh_view)
 
-        self.btn_terminal = QPushButton()
-        self.btn_terminal.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveDVDIcon))
-        self.btn_terminal.setFixedSize(32, 32)
-        self.btn_terminal.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_terminal.setToolTip("Abrir no Terminal")
+        self.btn_terminal = _make_tool_button(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveDVDIcon), "Abrir no Terminal")
         self.btn_terminal.clicked.connect(self._open_in_terminal)
 
         nav_layout.addWidget(self.btn_back)
         nav_layout.addWidget(self.btn_forward)
         nav_layout.addWidget(self.btn_up)
+        nav_layout.addSpacing(6)
         nav_layout.addWidget(self.address_bar, 1)
+        nav_layout.addSpacing(6)
+        nav_layout.addWidget(self.btn_search)
+        nav_layout.addWidget(self.sort_combo)
+        nav_layout.addWidget(self.btn_sort_order)
+        nav_layout.addWidget(self.btn_toggle_view)
         nav_layout.addWidget(self.btn_refresh)
         nav_layout.addWidget(self.btn_terminal)
         top_bar_layout.addLayout(nav_layout)
 
-        # Linha 2: Controles de Visualização
-        controls_layout = QHBoxLayout()
-        controls_layout.setContentsMargins(0, 5, 0, 0)
-
-        self.btn_toggle_view = QPushButton()
-        self.btn_toggle_view.setFixedSize(32, 32)
-        self.btn_toggle_view.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.btn_toggle_view.clicked.connect(self._toggle_view_mode)
-
-        self.sort_combo = QComboBox()
-        self.sort_combo.addItems(["Nome", "Tamanho", "Data de Modificação"])
-        self.sort_combo.currentIndexChanged.connect(self._on_sort_changed)
-
-        self.btn_sort_order = QPushButton()
-        self.btn_sort_order.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown))
-        self.btn_sort_order.setFixedSize(32, 32)
-        self.btn_sort_order.setCheckable(True)
-        self.btn_sort_order.setToolTip("Ordem Ascendente/Descendente")
-        self.btn_sort_order.clicked.connect(self._on_sort_changed)
-
-        controls_layout.addWidget(self.btn_toggle_view)
-        controls_layout.addWidget(QLabel("Ordenar por:"))
-        controls_layout.addWidget(self.sort_combo)
-        controls_layout.addWidget(self.btn_sort_order)
-        controls_layout.addSpacing(20)
+        # Linha secundária (retrátil): Filtro de texto + Zoom
+        self.filter_row_widget = QWidget()
+        filter_row_layout = QHBoxLayout(self.filter_row_widget)
+        filter_row_layout.setContentsMargins(0, 0, 0, 0)
+        filter_row_layout.setSpacing(8)
 
         self.filter_bar = QLineEdit()
-        self.filter_bar.setPlaceholderText("Filtrar...")
+        self.filter_bar.setPlaceholderText("Filtrar por nome...")
         self.filter_bar.setClearButtonEnabled(True)
+        self.filter_bar.setFixedHeight(BTN_SIZE)
         self.filter_bar.textChanged.connect(self._on_filter_changed)
-        controls_layout.addWidget(self.filter_bar, 1)
-        controls_layout.addStretch()
+        filter_row_layout.addWidget(self.filter_bar, 1)
 
         self.zoom_slider = QSlider(Qt.Orientation.Horizontal)
         self.zoom_slider.setRange(32, 128) # Tamanho do ícone
         self.zoom_slider.setValue(48)
-        self.zoom_slider.setFixedWidth(150)
+        self.zoom_slider.setFixedWidth(120)
+        self.zoom_slider.setToolTip("Tamanho dos ícones")
         self.zoom_slider.valueChanged.connect(self._on_zoom_changed)
-        
-        controls_layout.addWidget(QLabel("Zoom:"))
-        controls_layout.addWidget(self.zoom_slider)
-        top_bar_layout.addLayout(controls_layout)
+        filter_row_layout.addWidget(self.zoom_slider)
+
+        top_bar_layout.addWidget(self.filter_row_widget)
+        self.filter_row_widget.hide() # Retrátil: só aparece ao clicar em Filtrar
 
         layout.addWidget(top_bar_widget)
 
         # --- Barra de Favoritos Rápidos ---
         self.favorites_container = QWidget()
-        self.favorites_container.setFixedHeight(45)
+        self.favorites_container.setFixedHeight(38)
         fav_layout_outer = QHBoxLayout(self.favorites_container)
-        fav_layout_outer.setContentsMargins(10, 0, 10, 5)
+        fav_layout_outer.setContentsMargins(10, 0, 10, 4)
         
         self.favorites_scroll = QScrollArea()
         self.favorites_scroll.setWidgetResizable(True)
         self.favorites_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.favorites_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.favorites_scroll.setStyleSheet("background: transparent; border: none;")
-        self.favorites_scroll.setFixedHeight(40)
+        self.favorites_scroll.setFixedHeight(34)
         
         self.favorites_content = QWidget()
         self.favorites_layout = QHBoxLayout(self.favorites_content)
         self.favorites_layout.setContentsMargins(0, 0, 0, 0)
-        self.favorites_layout.setSpacing(8)
+        self.favorites_layout.setSpacing(6)
         self.favorites_layout.setAlignment(Qt.AlignLeft)
         
         self.favorites_scroll.setWidget(self.favorites_content)
@@ -362,6 +363,14 @@ class TasmaFileView(QWidget):
         else:
             self._set_icon_mode()
 
+    def _toggle_filter_row(self, checked):
+        """Mostra ou oculta a linha de filtro/zoom, mantendo a barra de ferramentas enxuta."""
+        self.filter_row_widget.setVisible(checked)
+        if checked:
+            self.filter_bar.setFocus()
+        else:
+            self.filter_bar.clear()
+
     def go_back(self):
         if not self._history:
             return
@@ -442,36 +451,55 @@ class TasmaFileView(QWidget):
         border = theme.get("border_color", "#454545")
         selection = theme.get("selection", "#094771")
         accent = theme.get("accent", "#007acc")
-        
-        self.address_bar.setStyleSheet(f"QPushButton {{ color: {accent}; font-weight: normal; border: none; background: transparent; padding: 4px; }} QLabel {{ color: {fg}; }}")
-        
+
+        self.address_bar.setStyleSheet(f"QPushButton {{ color: {fg}; font-weight: 500; border: none; background: transparent; padding: 4px 6px; }} QPushButton:hover {{ color: {accent}; }} QLabel {{ color: {border}; padding: 0 2px; }}")
+
+        # Botões de ferramenta: totalmente flat, sem borda; hover mostra apenas um leve tom de fundo.
         tool_button_style = f"""
-            QPushButton {{ background-color: {input_bg}; border: 1px solid {border}; border-radius: 4px; }}
-            QPushButton:hover {{ background-color: {border}; }}
-            QPushButton:disabled {{ background-color: {bg}; border-color: {border}; color: #555; }}
+            QPushButton {{ background-color: transparent; border: none; border-radius: 6px; }}
+            QPushButton:hover {{ background-color: {input_bg}; }}
+            QPushButton:disabled {{ background-color: transparent; }}
         """
-        self.filter_bar.setStyleSheet(f"QLineEdit {{ background-color: {input_bg}; color: {fg}; padding: 5px; border: 1px solid {border}; border-radius: 4px; }}")
+        checkable_button_style = f"""
+            QPushButton {{ background-color: transparent; border: none; border-radius: 6px; }}
+            QPushButton:hover {{ background-color: {input_bg}; }}
+            QPushButton:checked {{ background-color: {accent}; }}
+            QPushButton:disabled {{ background-color: transparent; }}
+        """
+        self.filter_bar.setStyleSheet(f"""
+            QLineEdit {{ background-color: {input_bg}; color: {fg}; padding: 6px 10px; border: none; border-radius: 6px; }}
+            QLineEdit:focus {{ background-color: {input_bg}; }}
+        """)
 
         self.btn_back.setStyleSheet(tool_button_style)
         self.btn_forward.setStyleSheet(tool_button_style)
         self.btn_up.setStyleSheet(tool_button_style)
         self.btn_refresh.setStyleSheet(tool_button_style)
         self.btn_toggle_view.setStyleSheet(tool_button_style)
-        self.btn_sort_order.setStyleSheet(tool_button_style)
+        self.btn_sort_order.setStyleSheet(checkable_button_style)
         self.btn_terminal.setStyleSheet(tool_button_style)
+        self.btn_search.setStyleSheet(checkable_button_style)
 
-        self.sort_combo.setStyleSheet(f"QComboBox {{ background-color: {input_bg}; color: {fg}; border: 1px solid {border}; padding: 4px; border-radius: 4px; }}")
-        self.zoom_slider.setStyleSheet("QSlider::groove:horizontal { border: 1px solid #bbb; background: white; height: 10px; border-radius: 4px; } QSlider::handle:horizontal { background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #eee, stop:1 #ccc); border: 1px solid #777; width: 18px; margin: -2px 0; border-radius: 4px; }")
-        
-        # Estilo dos botões de favoritos (Chips)
+        self.sort_combo.setStyleSheet(f"""
+            QComboBox {{ background-color: transparent; color: {fg}; border: none; padding: 4px 6px; border-radius: 6px; }}
+            QComboBox:hover {{ background-color: {input_bg}; }}
+            QComboBox::drop-down {{ border: none; width: 18px; }}
+            QComboBox QAbstractItemView {{ background-color: {bg}; color: {fg}; selection-background-color: {accent}; border: 1px solid {border}; outline: none; }}
+        """)
+        self.zoom_slider.setStyleSheet(f"""
+            QSlider::groove:horizontal {{ background: {input_bg}; height: 4px; border-radius: 2px; }}
+            QSlider::handle:horizontal {{ background: {accent}; width: 12px; height: 12px; margin: -4px 0; border-radius: 6px; }}
+        """)
+
+        # Chips de favoritos: cápsula discreta, ganha cor apenas no hover.
         fav_btn_style = f"""
             QPushButton {{
-                background-color: {input_bg};
-                border: 1px solid transparent;
-                border-radius: 14px;
-                padding: 4px 12px;
+                background-color: transparent;
+                border: 1px solid {input_bg};
+                border-radius: 13px;
+                padding: 3px 12px;
                 color: {fg};
-                font-weight: bold;
+                font-weight: 500;
             }}
             QPushButton:hover {{
                 background-color: {accent};
@@ -483,21 +511,15 @@ class TasmaFileView(QWidget):
             widget = self.favorites_layout.itemAt(i).widget()
             if widget:
                 widget.setStyleSheet(fav_btn_style)
-        
+
         self.list_view.setStyleSheet(f"""
             QListView {{ background-color: {bg}; color: {fg}; border: none; }}
-            QListView::item {{ padding: 5px; border-radius: 4px; }}
-            QListView::item:selected {{ background-color: {selection}; color: white; border: 1px solid {accent}; }}
-            QListView::item:hover {{ background-color: {border}; }}
+            QListView::item {{ padding: 6px; border-radius: 6px; }}
+            QListView::item:selected {{ background-color: {selection}; color: #ffffff; }}
+            QListView::item:hover {{ background-color: {input_bg}; }}
         """)
 
     def set_path(self, path):
-        if path == "plugins_virtual_root":
-            # TODO: Implementar visualização virtual de plugins se necessário
-            # Por enquanto redireciona para home
-            path = QDir.homePath()
-            
-        # History management
         if not self._is_navigating_history:
             old_path = self.model.rootPath()
             if old_path != path and os.path.exists(old_path):

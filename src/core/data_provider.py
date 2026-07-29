@@ -19,18 +19,6 @@ class TasmaDataProvider(QObject):
         session = self.session_manager.load_session()
         return session.get("recent_projects", [])
 
-    def get_user_plugins(self):
-        """Retorna lista de caminhos dos plugins instalados."""
-        plugins_dir = os.path.join(self.root_dir, "plugins")
-        if os.path.exists(plugins_dir):
-            return [os.path.join(plugins_dir, d) for d in os.listdir(plugins_dir) 
-                    if os.path.isdir(os.path.join(plugins_dir, d)) and not d.startswith("__")]
-        return []
-
-    def get_editor_source(self):
-        """Retorna o caminho do código fonte do editor."""
-        return os.path.join(self.root_dir, "src")
-
     def get_home_dir(self):
         return QDir.homePath()
         
@@ -56,7 +44,7 @@ class TasmaDataProvider(QObject):
             try:
                 with open(self.categories_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except:
+            except (OSError, json.JSONDecodeError):
                 return {}
         return {}
 
